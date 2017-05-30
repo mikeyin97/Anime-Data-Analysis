@@ -12,7 +12,8 @@ The code is pretty hacked together and occasionally crashes - sometimes due to m
 coding incompetencies and sometimes due to MAL servers. It also doesn't read
 special unicode characters. 
 
-It's actually super annoying to use, crashes about every ~300 entries on average
+It's actually super annoying to use, crashes about every ~300 entries on average.
+1000 at best
 
 !!!!If it crashes, the best advice I can give is to record
 the last id printed and change the while loop in line 32 to start at that (id+1)
@@ -43,7 +44,7 @@ url = 'https://myanimelist.net/anime/'
 
 #this should go from 1 to 100000 (some arbitrarily large number)
 #however, I often change the range because the program crashes
-for i in range(3360,100000):
+for i in range(11032,40000):
     r = requests.get(url + str(i),headers = {'User-agent': 'your bot 0.1'}) #so we don't get flagged as a bot
     data = r.text
     j=0
@@ -106,7 +107,7 @@ for i in range(3360,100000):
             df2.to_csv(f, header=False)
         results = {"ID":[], "Title":[], "Type":[], "Episodes":[], "Status":[], "Aired":[], "Studios":[], "Source":[], "Genres":[], "Duration":[], "Rating":[], "Ranked":[], "Popularity":[], "Score":[]}
 
-    #time.sleep(1)
+    time.sleep(0.2)
 
 """
 
