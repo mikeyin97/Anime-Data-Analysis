@@ -44,7 +44,8 @@ url = 'https://myanimelist.net/anime/'
 
 #this should go from 1 to 100000 (some arbitrarily large number)
 #however, I often change the range because the program crashes
-for i in range(11032,40000):
+#edit: new try/except statement should fix most of these problems
+for i in range(1,40000):
     r = requests.get(url + str(i),headers = {'User-agent': 'your bot 0.1'}) #so we don't get flagged as a bot
     data = r.text
     j=0
@@ -56,6 +57,8 @@ for i in range(11032,40000):
         except:
             j+=1
             time.sleep(5)
+            r = requests.get(url + str(i),headers = {'User-agent': 'your bot 0.1'}) #so we don't get flagged as a bot
+            data = r.text
             pass
     title = (data[title_start+8:title_end-19])
     print(i)
@@ -107,7 +110,7 @@ for i in range(11032,40000):
             df2.to_csv(f, header=False)
         results = {"ID":[], "Title":[], "Type":[], "Episodes":[], "Status":[], "Aired":[], "Studios":[], "Source":[], "Genres":[], "Duration":[], "Rating":[], "Ranked":[], "Popularity":[], "Score":[]}
 
-    time.sleep(0.2)
+    #time.sleep(1)
 
 """
 
