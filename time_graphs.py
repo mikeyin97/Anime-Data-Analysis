@@ -32,6 +32,8 @@ non_h_combined_data = combined_data[combined_data["Rating"] != "Rx - Hentai"]
 
 #genre/score/popularity for each studio (box plot chart for genres, diff graph per studio)
 
+#histograms? beanplots?
+
 
 def studio_vs_ratings():
     
@@ -67,9 +69,29 @@ def studio_vs_popularity():
     plt.tight_layout()
     sns.plt.show()
     
-def genre_vs_ratings():
-    print(non_h_combined_data.Genres.unique())
+def source_vs_ratings():
+    
+    all_source_data = []
+    source_means = []
+    source_stddev = []
+    
+    for source in (non_h_combined_data.Source.unique()):
+        source_data = non_h_combined_data[non_h_combined_data['Source'] == source] 
+        all_source_data.append(source_data)
+        source_means.append(round(float(source_data.loc[:,["Score"]].mean()),2))
+        source_stddev.append(round(float(source_data.loc[:,["Score"]].std()),2))
+    result = pd.concat(all_source_data)
+    
+    ax = sns.boxplot(x="Source", y="Score", data=result)
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    sns.plt.show()
 
+def testing():
+    #print((non_h_combined_data.Source.value_counts()))
+    return
+    
 if __name__ == "__main__":
-    genre_vs_ratings()
+    source_vs_ratings()
+    testing()
     
