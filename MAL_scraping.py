@@ -23,7 +23,7 @@ a csv file which I can use for additional processing later anyways.
 
 The csv will be accurate as of May 29 2017
 
-edit:kms i forgot # of people scored oh well
+edit:kms i forgot # of people scored oh well <- I will add this in soon because I wanna use it
 """
 
 #importing relevant libraries 
