@@ -37,7 +37,8 @@ import time
 #structure in the html
 results = {"ID":[], "Title":[], "Type":[], "Episodes":[], "Status":[], "Aired":[], "Premiered":[], "Broadcast":[],
            "Producers":[], "Licensors":[], "Studios":[], "Source":[], "Genres":[], "Duration":[], "Rating":[],
-           "Score":[], "Ranked":[], "Popularity":[], "Members":[], "Favorites":[]}
+           "Score":[], "Users Scored":[], "Ranked":[], "Popularity":[], "Members":[], "Favorites":[]}
+
 info = ["Type", "Episodes", "Status", "Aired", "Premiered", "Broadcast", "Producers", "Licensors", "Studios", "Source", "Genres",
         "Duration", "Rating", "Score", "Ranked", "Popularity", "Members", "Favorites"]
 
@@ -56,6 +57,22 @@ def get_mal_html():
             time.sleep(5)
             continue
     raise ValueError('HTML failed to be obtained')
+
+#Takes a navigatable string from BeautifulSoup api and cleans it into a standard unicode string
+def clean_nav_string(nav_string):
+    unicode_string = str(nav_string.encode('utf-8'))[2:-1]
+    unicode_string = unicode_string.replace("\\n", "")
+    unicode_string = unicode_string.strip()
+    return unicode_string
+
+#Grabs and appends all string values together from all nested elements within the main_element
+def get_value_from_nested_elements(main_element):
+    value = ""
+    for sibling in (main_element.next_siblings):
+        if sibling.string != None:
+            value = value + ' ' + clean_nav_string(sibling.string)
+            value = value.strip()
+    return value
 
 #this should go from 1 to 100000 (some arbitrarily large number)
 #however, I often change the range because the program crashes
@@ -80,18 +97,16 @@ for i in range(0,6):
     results["ID"].append(i)
     results["Title"].append((str(title.encode('utf-8')))[2:-1])
 
+    #Use BeautifulSoup to find locations of all relevant info - all of them are under "dark_text" spans
     data = mal_soup.find_all("span", class_="dark_text")
-    for i in data:
-        index = i.string[:-1]
+    for element in data:
+        index = element.string[:-1]
         if (index in info):
-            if (index in nested_info):
-                value = "-1"
+            if (index in nested_info): #Relevant info lays deeper in nested elements
+                value = get_value_from_nested_elements(element)
             else:
-                value = i.next_sibling.string
-
-            value = str(value.encode('utf-8'))[2:-1]
-            value = value.replace("\\n","")
-            value = value.strip()
+                value = element.next_sibling.string
+                value = clean_nav_string(value)
             results[index].append(value)
 
     #Fill in missing/inapplicable data to maintain table consistency
@@ -99,8 +114,10 @@ for i in range(0,6):
         if len(results[i]) != len(results["ID"]):
             results[i].append(-1)
 
-for i in results:
-    print(i,results[i])
+#Parse Score data in numerical score value and number of users scored
+for i in range(len(results["Score"])):
+    results["Users Scored"][i] = results["Score"][i][18:-7]
+    results["Score"][i] = results["Score"][i][0:4]
 
 df = pd.DataFrame(results)
 df2 = df.set_index("ID")
