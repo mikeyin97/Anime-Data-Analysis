@@ -46,11 +46,11 @@ nested_info = ["Type", "Premiered", "Producers", "Licensors", "Studios", "Genres
 
 #MAL has a quite convenient characteristic that every page can be found using /anime/showid
 #where id is a number from 1 to some large number I don't know
-def get_mal_html():
+def get_mal_html(page_id):
     url = 'https://myanimelist.net/anime/'
     for attempt in range(10):
         try:
-            r = requests.get(url + str(i), headers={'User-agent': 'your bot 0.1'})  # so we don't get flagged as a bot
+            r = requests.get(url + str(page_id), headers={'User-agent': 'your bot 0.1'})  # so we don't get flagged as a bot
             return r.text
         except:
             print("Resending get request")
@@ -74,51 +74,54 @@ def get_value_from_nested_elements(main_element):
             value = value.strip()
     return value
 
-#this should go from 1 to 100000 (some arbitrarily large number)
-#however, I often change the range because the program crashes
-#edit: new try/except statement should fix most of these problems
-for i in range(0,6):
-    try:
-        mal_html = get_mal_html()
-    except ValueError as err:
-        print(err.args)
-        print("Error on: ", i)
-        break
+def construct_mal_results_table(start_id, end_id):
+    #this should go from 1 to 100000 (some arbitrarily large number)
+    #however, I often change the range because the program crashes
+    #edit: new try/except statement should fix most of these problems
+    for id in range(start_id,end_id):
+        try:
+            mal_html = get_mal_html(id)
+        except ValueError as err:
+            print(err.args)
+            print("Error on: ", id)
+            break
 
-    mal_soup = BeautifulSoup(mal_html)
-    title = mal_soup.title.string[1:-19]
+        mal_soup = BeautifulSoup(mal_html)
+        title = mal_soup.title.string[1:-19]
 
-    print(i)
-    print((str(title.encode('utf-8')))[2:-1])
+        print(id)
+        print((str(title.encode('utf-8')))[2:-1])
 
-    if "04 Not Found" in title: #some pages return 404's, filter them out
-        continue
+        if "04 Not Found" in title: #some pages return 404's, filter them out
+            continue
 
-    results["ID"].append(i)
-    results["Title"].append((str(title.encode('utf-8')))[2:-1])
+        results["ID"].append(id)
+        results["Title"].append((str(title.encode('utf-8')))[2:-1])
 
-    #Use BeautifulSoup to find locations of all relevant info - all of them are under "dark_text" spans
-    data = mal_soup.find_all("span", class_="dark_text")
-    for element in data:
-        index = element.string[:-1]
-        if (index in info):
-            if (index in nested_info): #Relevant info lays deeper in nested elements
-                value = get_value_from_nested_elements(element)
-            else:
-                value = element.next_sibling.string
-                value = clean_nav_string(value)
-            results[index].append(value)
+        #Use BeautifulSoup to find locations of all relevant info - all of them are under "dark_text" spans
+        data = mal_soup.find_all("span", class_="dark_text")
+        for element in data:
+            index = element.string[:-1]
+            if (index in info):
+                if (index in nested_info): #Relevant info lays deeper in nested elements
+                    value = get_value_from_nested_elements(element)
+                else:
+                    value = element.next_sibling.string
+                    value = clean_nav_string(value)
+                results[index].append(value)
 
-    #Fill in missing/inapplicable data to maintain table consistency
-    for i in results:
-        if len(results[i]) != len(results["ID"]):
-            results[i].append(-1)
+        #Fill in missing/inapplicable data to maintain table consistency
+        for i in results:
+            if len(results[i]) != len(results["ID"]):
+                results[i].append(-1)
 
-#Parse Score data in numerical score value and number of users scored
-for i in range(len(results["Score"])):
-    results["Users Scored"][i] = results["Score"][i][18:-7]
-    results["Score"][i] = results["Score"][i][0:4]
+    #Parse Score data in numerical score value and number of users scored
+    for i in range(len(results["Score"])):
+        results["Users Scored"][i] = results["Score"][i][18:-7]
+        results["Score"][i] = results["Score"][i][0:4]
 
+
+construct_mal_results_table(0,10)
 df = pd.DataFrame(results)
 df2 = df.set_index("ID")
 with open('mal_data.csv', 'a') as f:
