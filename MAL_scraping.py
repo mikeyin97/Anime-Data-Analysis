@@ -41,6 +41,8 @@ results = {"ID":[], "Title":[], "Type":[], "Episodes":[], "Status":[], "Aired":[
 info = ["Type", "Episodes", "Status", "Aired", "Premiered", "Broadcast", "Producers", "Licensors", "Studios", "Source", "Genres",
         "Duration", "Rating", "Score", "Ranked", "Popularity", "Members", "Favorites"]
 
+nested_info = ["Type", "Premiered", "Producers", "Licensors", "Studios", "Genres", "Score"]
+
 #MAL has a quite convenient characteristic that every page can be found using /anime/showid
 #where id is a number from 1 to some large number I don't know
 def get_mal_html():
@@ -58,58 +60,48 @@ def get_mal_html():
 #this should go from 1 to 100000 (some arbitrarily large number)
 #however, I often change the range because the program crashes
 #edit: new try/except statement should fix most of these problems
-for i in range(0,15):
+for i in range(0,6):
     try:
-        data = get_mal_html()
+        mal_html = get_mal_html()
     except ValueError as err:
         print(err.args)
+        print("Error on: ", i)
         break
 
-    title_start = data.index('<title>')
-    title_end = data.index('</title>')
-    title = (data[title_start+8:title_end-19])
+    mal_soup = BeautifulSoup(mal_html)
+    title = mal_soup.title.string[1:-19]
 
     print(i)
     print((str(title.encode('utf-8')))[2:-1])
 
-    if "404 Not Found" in data: #some pages return 404's, filter them out
+    if "04 Not Found" in title: #some pages return 404's, filter them out
         continue
 
     results["ID"].append(i)
     results["Title"].append((str(title.encode('utf-8')))[2:-1])
-    for i in info:
-        info_text = '<span class="dark_text">' + i + ':</span>'
-        try:
-            info_start = (data.index(info_text))
-        except:
-            results[i].append("Unknown")
-            continue
-        remaining = data[info_start: info_start + 1500]
-        info_end = (remaining.index('/div'))
 
-        if i == "Premiered":
-            results[i].append((BeautifulSoup(remaining[3+len(info_text):info_end-16])).get_text())
-        elif i == "Broadcast":
-            results[i].append((BeautifulSoup(remaining[3+len(info_text):info_end-8])).get_text())
-        elif i == "Ranked":
-            results[i].append((BeautifulSoup(remaining[4+len(info_text):info_end-215])).get_text())
-            #print([int(s) for s in k.split() if s.isdigit()])
-        elif i == "Popularity":
-            results[i].append((BeautifulSoup(remaining[4+len(info_text):info_end-2])).get_text())
-        else:
-            results[i].append((BeautifulSoup(remaining[3+len(info_text):info_end-4])).get_text())
-    '''
-    try:
-        score_text = '<span itemprop="ratingValue">'
-        score_start = data.index(score_text)
-        score = float(data[score_start+29:score_start+33])
-        results["Score"].append(score)
-    except:
-        score_text = '<span class="dark_text">Score:</span>' #some of the scores are formatted differently
-        score_start = data.index(score_text)
-        score = (data[score_start+46:score_start+50])
-        results["Score"].append(score)
-    '''
+    data = mal_soup.find_all("span", class_="dark_text")
+    for i in data:
+        index = i.string[:-1]
+        if (index in info):
+            if (index in nested_info):
+                value = "-1"
+            else:
+                value = i.next_sibling.string
+
+            value = str(value.encode('utf-8'))[2:-1]
+            value = value.replace("\\n","")
+            value = value.strip()
+            results[index].append(value)
+
+    #Fill in missing/inapplicable data to maintain table consistency
+    for i in results:
+        if len(results[i]) != len(results["ID"]):
+            results[i].append(-1)
+
+for i in results:
+    print(i,results[i])
+
 df = pd.DataFrame(results)
 df2 = df.set_index("ID")
 with open('mal_data.csv', 'a') as f:
