@@ -10,7 +10,7 @@ retrieves the important information.
 
 The code is pretty hacked together and occasionally crashes - sometimes due to my
 coding incompetencies and sometimes due to MAL servers. It also doesn't read
-special unicode characters. 
+special unicode characters.
 
 It's actually super annoying to use, crashes about every ~300 entries on average.
 1000 at best
@@ -32,10 +32,10 @@ import pandas as pd
 from bs4 import BeautifulSoup
 import numpy as np
 import time
-from multiprocessing import Process, Lock
+from multiprocessing import Process, Lock, Queue
 
 #results are the variables I'm interested in, info are columns that share a similar 
-#structure in the html
+#structure in the html, nested info are columns whose data lie nested further within the similar html elements
 results = {"ID":[], "Title":[], "Type":[], "Episodes":[], "Status":[], "Aired":[], "Premiered":[], "Broadcast":[],
            "Producers":[], "Licensors":[], "Studios":[], "Source":[], "Genres":[], "Duration":[], "Rating":[],
            "Score":[], "Users Scored":[], "Ranked":[], "Popularity":[], "Members":[], "Favorites":[]}
@@ -45,37 +45,8 @@ info = ["Type", "Episodes", "Status", "Aired", "Premiered", "Broadcast", "Produc
 
 nested_info = ["Type", "Premiered", "Producers", "Licensors", "Studios", "Genres", "Score"]
 
-#MAL has a quite convenient characteristic that every page can be found using /anime/showid
-#where id is a number from 1 to some large number I don't know
-def get_mal_html(page_id):
-    url = 'https://myanimelist.net/anime/'
-    for attempt in range(10):
-        try:
-            r = requests.get(url + str(page_id), headers={'User-agent': 'your bot 0.1'})  # so we don't get flagged as a bot
-            return r.text
-        except:
-            print("Resending get request")
-            time.sleep(5)
-            continue
-    raise ValueError('HTML failed to be obtained')
 
-#Takes a navigatable string from BeautifulSoup api and cleans it into a standard unicode string
-def clean_nav_string(nav_string):
-    unicode_string = str(nav_string.encode('utf-8'))[2:-1]
-    unicode_string = unicode_string.replace("\\n", "")
-    unicode_string = unicode_string.strip()
-    return unicode_string
-
-#Grabs and appends all string values together from all nested elements within the main_element
-def get_value_from_nested_elements(main_element):
-    value = ""
-    for sibling in (main_element.next_siblings):
-        if sibling.string != None:
-            value = value + ' ' + clean_nav_string(sibling.string)
-            value = value.strip()
-    return value
-
-def construct_mal_results_table(start_id, end_id, lock):
+def construct_mal_results_table(start_id, end_id, process_queue):
     #this should go from 1 to 100000 (some arbitrarily large number)
     #however, I often change the range because the program crashes
     #edit: new try/except statement should fix most of these problems
@@ -88,61 +59,101 @@ def construct_mal_results_table(start_id, end_id, lock):
             break
 
         mal_soup = BeautifulSoup(mal_html)
-
-        try:
-            title = mal_soup.title.string[1:-19]
-        except:
-            continue
+        title = mal_soup.title.string[1:-19]
 
         print(id)
         print((str(title.encode('utf-8')))[2:-1])
 
-        if "04 Not Found" in title: #some pages return 404's, filter them out
+        if "04 Not Found" in title: # Some pages return 404's, filter them out
             continue
-
-        lock.acquire()
 
         results["ID"].append(id)
         results["Title"].append((str(title.encode('utf-8')))[2:-1])
 
-        #Use BeautifulSoup to find locations of all relevant info - all of them are under "dark_text" spans
+        # Use BeautifulSoup to find locations of all relevant info - all of them are under "dark_text" spans
         data = mal_soup.find_all("span", class_="dark_text")
         for element in data:
             index = element.string[:-1]
-            if (index in info):
-                if (index in nested_info): #Relevant info lays deeper in nested elements
+            if index in info:
+                if index in nested_info: # Relevant info lays deeper in nested elements
                     value = get_value_from_nested_elements(element)
                 else:
                     value = element.next_sibling.string
                     value = clean_nav_string(value)
                 results[index].append(value)
 
-        #Fill in missing/inapplicable data to maintain table consistency
+        # Fill in missing/inapplicable data to maintain table consistency
         for i in results:
             if len(results[i]) != len(results["ID"]):
                 results[i].append(-1)
-        lock.release()
 
-    #Parse Score data in numerical score value and number of users scored
-    lock.acquire()
-    for i in range(len(results["Score"])):
-        results["Users Scored"][i] = results["Score"][i][18:-7]
-        results["Score"][i] = results["Score"][i][0:4]
-    lock.release()
+    process_queue.put(results)
 
+#MAL has a quite convenient characteristic that every page can be found using /anime/showid
+#where id is a number from 1 to some large number I don't know
+def get_mal_html(page_id):
+    url = 'https://myanimelist.net/anime/'
+    for attempt in range(10):
+        try:
+            r = requests.get(url + str(page_id), headers={'User-agent': 'your bot 0.1'})  # so we don't get flagged as a bot
+        except:
+            print("Could not get HTML - Resending get request on Page ID: ", page_id, ", Attempt # ", attempt)
+        else:
+            if r.text == "Too Many Requests\n":
+                print("Too Many Requests - Resending get request on Page ID: ", page_id, ", Attempt # ", attempt)
+            else:
+                return r.text
+        time.sleep(5)
+    raise ValueError('HTML failed to be obtained')
 
+# Takes a navigatable string from BeautifulSoup api and cleans it into a standard unicode string
+def clean_nav_string(nav_string):
+    unicode_string = str(nav_string.encode('utf-8'))[2:-1]
+    unicode_string = unicode_string.replace("\\n", "")
+    unicode_string = unicode_string.strip()
+    return unicode_string
+
+# Grabs and appends all string values together from all nested elements within the main_element
+def get_value_from_nested_elements(main_element):
+    value = ""
+    for sibling in (main_element.next_siblings):
+        if sibling.string != None:
+            value = value + " " + clean_nav_string(sibling.string)
+            value = value.strip()
+    return value
 
 if __name__ == '__main__':
+    # Use multiprocessing to run multiple scrappers in parallel - obtain data faster
     jobs = []
-    lock = Lock()
-    for i in range(5):
-        p = Process(target=construct_mal_results_table,args=(i*8000, (i+1)*8000, lock))
+    num_processes = 5
+    ids_per_process = 40
+    queue = Queue()
+    for i in range(num_processes):
+        p = Process(target=construct_mal_results_table,args=(i*ids_per_process, (i+1)*ids_per_process, queue))
         jobs.append(p)
         p.start()
+
+    # Consolidate all multiprocessing result values
+    result_values = ()
+    for q in range(num_processes):
+        while queue.empty():
+            continue
+        result_values += (queue.get(),)
+
+    # Ensure processes are joined
     for j in jobs:
         j.join()
 
-    #construct_mal_results_table(0,30000)
+    # Join all multiprocessing result values together into one single results table
+    for result in result_values:
+        for key, value in result.items():
+            results[key] += value
+
+    # Parse Score data in numerical score value and number of users scored
+    for i in range(len(results["Score"])):
+        results["Users Scored"][i] = results["Score"][i][18:-7]
+        results["Score"][i] = results["Score"][i][0:4]
+
     df = pd.DataFrame(results)
     df2 = df.set_index("ID")
     with open('mal_data.csv', 'a') as f:
