@@ -32,6 +32,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 import numpy as np
 import time
+from multiprocessing import Process, Lock
 
 #results are the variables I'm interested in, info are columns that share a similar 
 #structure in the html
@@ -74,7 +75,7 @@ def get_value_from_nested_elements(main_element):
             value = value.strip()
     return value
 
-def construct_mal_results_table(start_id, end_id):
+def construct_mal_results_table(start_id, end_id, lock):
     #this should go from 1 to 100000 (some arbitrarily large number)
     #however, I often change the range because the program crashes
     #edit: new try/except statement should fix most of these problems
@@ -87,13 +88,19 @@ def construct_mal_results_table(start_id, end_id):
             break
 
         mal_soup = BeautifulSoup(mal_html)
-        title = mal_soup.title.string[1:-19]
+
+        try:
+            title = mal_soup.title.string[1:-19]
+        except:
+            continue
 
         print(id)
         print((str(title.encode('utf-8')))[2:-1])
 
         if "04 Not Found" in title: #some pages return 404's, filter them out
             continue
+
+        lock.acquire()
 
         results["ID"].append(id)
         results["Title"].append((str(title.encode('utf-8')))[2:-1])
@@ -114,18 +121,32 @@ def construct_mal_results_table(start_id, end_id):
         for i in results:
             if len(results[i]) != len(results["ID"]):
                 results[i].append(-1)
+        lock.release()
 
     #Parse Score data in numerical score value and number of users scored
+    lock.acquire()
     for i in range(len(results["Score"])):
         results["Users Scored"][i] = results["Score"][i][18:-7]
         results["Score"][i] = results["Score"][i][0:4]
+    lock.release()
 
 
-construct_mal_results_table(0,10)
-df = pd.DataFrame(results)
-df2 = df.set_index("ID")
-with open('mal_data.csv', 'a') as f:
-    df2.to_csv(f, header=False)
+
+if __name__ == '__main__':
+    jobs = []
+    lock = Lock()
+    for i in range(5):
+        p = Process(target=construct_mal_results_table,args=(i*8000, (i+1)*8000, lock))
+        jobs.append(p)
+        p.start()
+    for j in jobs:
+        j.join()
+
+    #construct_mal_results_table(0,30000)
+    df = pd.DataFrame(results)
+    df2 = df.set_index("ID")
+    with open('mal_data.csv', 'a') as f:
+        df2.to_csv(f, header=False)
 
 """
 #bebop testing
