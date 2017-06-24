@@ -126,7 +126,7 @@ if __name__ == '__main__':
     # Use multiprocessing to run multiple scrappers in parallel - obtain data faster
     jobs = []
     num_processes = 5
-    ids_per_process = 40
+    ids_per_process = 8000
     queue = Queue()
     for i in range(num_processes):
         p = Process(target=construct_mal_results_table,args=(i*ids_per_process, (i+1)*ids_per_process, queue))
@@ -151,8 +151,12 @@ if __name__ == '__main__':
 
     # Parse Score data in numerical score value and number of users scored
     for i in range(len(results["Score"])):
-        results["Users Scored"][i] = results["Score"][i][18:-7]
-        results["Score"][i] = results["Score"][i][0:4]
+        try:
+            results["Users Scored"][i] = results["Score"][i][18:-7]
+        except:
+            results["Users Scored"][i] = -1
+        else:
+            results["Score"][i] = results["Score"][i][0:4]
 
     df = pd.DataFrame(results)
     df2 = df.set_index("ID")
