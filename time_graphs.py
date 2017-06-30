@@ -4,13 +4,13 @@ import inspect
 import os
 import matplotlib.pyplot as plt
 sns.set()
-#sns.set_style("whitegrid")
 tips = sns.load_dataset("tips")
 def initialize_data():
+
     module_path = inspect.getfile(inspect.currentframe())
     module_dir = os.path.realpath(os.path.dirname(module_path))
     
-    data = pd.read_csv(module_dir+"/my_csv.csv", encoding = "ISO-8859-1")
+    data = pd.read_csv(module_dir+"/my_csv2.csv", encoding = "ISO-8859-1")
     data = data.set_index("ID")
     print(list(data.columns.values))
     
@@ -19,9 +19,12 @@ def initialize_data():
     ova_data = data[data["Type"] == "OVA"]
     combined_data = pd.concat([tv_data, ova_data])
     
-    return non_h_combined_data = combined_data[combined_data["Rating"] != "Rx - Hentai"]
+    non_h_combined_data = combined_data[combined_data["Rating"] != "Rx - Hentai"]
+    
+    cleaned_data = non_h_combined_data[non_h_combined_data["ScoredBy"] >= 100]
+    return cleaned_data
 
-def studio_vs_ratings(data):
+def studio_vs_ratings(non_h_combined_data):
     
     all_studio_data = []
     
@@ -38,7 +41,7 @@ def studio_vs_ratings(data):
     plt.tight_layout()
     sns.plt.show()
     
-def studio_vs_popularity(data):
+def studio_vs_popularity(non_h_combined_data):
     
     all_studio_data = []
     
@@ -50,12 +53,12 @@ def studio_vs_popularity(data):
         
     result = pd.concat(all_studio_data)
 
-    ax = sns.boxplot(x="Studios", y="Popularity", data=result)
+    ax = sns.boxplot(x="Studios", y="ScoredBy", data=result)
     plt.xticks(rotation=90)
     plt.tight_layout()
     sns.plt.show()
     
-def source_vs_ratings(data):
+def source_vs_ratings(non_h_combined_data):
     
     all_source_data = []
     source_means = []
@@ -72,13 +75,23 @@ def source_vs_ratings(data):
     plt.xticks(rotation=45)
     plt.tight_layout()
     sns.plt.show()
+    
+def make histogram of ratings
 
-def testing(data):
+def make histogram of popularity
+
+def genres vs ratings
+
+def genres vs popularity
+
+def testing(non_h_combined_data):
     #print((non_h_combined_data.Source.value_counts()))
     return
     
 if __name__ == "__main__":
     data = initialize_data()
-    source_vs_ratings(data)
+    #source_vs_ratings(data)
+    #studio_vs_popularity(data)
+    studio_vs_ratings(data)
     testing(data)
     
