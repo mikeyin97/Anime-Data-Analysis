@@ -6,36 +6,22 @@ import matplotlib.pyplot as plt
 sns.set()
 #sns.set_style("whitegrid")
 tips = sns.load_dataset("tips")
+def initialize_data():
+    module_path = inspect.getfile(inspect.currentframe())
+    module_dir = os.path.realpath(os.path.dirname(module_path))
+    
+    data = pd.read_csv(module_dir+"/my_csv.csv", encoding = "ISO-8859-1")
+    data = data.set_index("ID")
+    print(list(data.columns.values))
+    
+    data[['Score','Popularity','ScoredBy']] = data[['Score','Popularity','ScoredBy']].apply(pd.to_numeric,errors='coerce')
+    tv_data = data[data["Type"] == "TV"]
+    ova_data = data[data["Type"] == "OVA"]
+    combined_data = pd.concat([tv_data, ova_data])
+    
+    return non_h_combined_data = combined_data[combined_data["Rating"] != "Rx - Hentai"]
 
-module_path = inspect.getfile(inspect.currentframe())
-module_dir = os.path.realpath(os.path.dirname(module_path))
-
-data = pd.read_csv(module_dir+"/my_csv.csv", encoding = "ISO-8859-1")
-data = data.set_index("ID")
-print(list(data.columns.values))
-
-data[['Score','Popularity']] = data[['Score','Popularity']].apply(pd.to_numeric,errors='coerce')
-tv_data = data[data["Type"] == "TV"]
-ova_data = data[data["Type"] == "OVA"]
-combined_data = pd.concat([tv_data, ova_data])
-
-non_h_combined_data = combined_data[combined_data["Rating"] != "Rx - Hentai"]
-
-#how have genres changed over the years
-#how has scoring changed over the years 
-#how has source changed over the years 
-
-#genre vs score
-#source vs score
-#genre vs popularity
-#rating vs popularity
-
-#genre/score/popularity for each studio (box plot chart for genres, diff graph per studio)
-
-#histograms? beanplots?
-
-
-def studio_vs_ratings():
+def studio_vs_ratings(data):
     
     all_studio_data = []
     
@@ -52,7 +38,7 @@ def studio_vs_ratings():
     plt.tight_layout()
     sns.plt.show()
     
-def studio_vs_popularity():
+def studio_vs_popularity(data):
     
     all_studio_data = []
     
@@ -69,7 +55,7 @@ def studio_vs_popularity():
     plt.tight_layout()
     sns.plt.show()
     
-def source_vs_ratings():
+def source_vs_ratings(data):
     
     all_source_data = []
     source_means = []
@@ -87,11 +73,12 @@ def source_vs_ratings():
     plt.tight_layout()
     sns.plt.show()
 
-def testing():
+def testing(data):
     #print((non_h_combined_data.Source.value_counts()))
     return
     
 if __name__ == "__main__":
-    source_vs_ratings()
-    testing()
+    data = initialize_data()
+    source_vs_ratings(data)
+    testing(data)
     
