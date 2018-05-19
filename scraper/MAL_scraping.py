@@ -136,6 +136,6 @@ for i in range(35795,40000):
             df2.to_csv(f, header=False)
         results = {"ID":[], "Title":[], "Type":[], "Episodes":[], "Status":[], "Aired":[], "Studios":[], "Source":[], "Genres":[], "Duration":[], "Rating":[], "Ranked":[], "Popularity":[], "Score":[], "ScoredBy":[]}
 
-    
+# add to mongo or mysql or something
 
 
